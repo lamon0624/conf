@@ -1,0 +1,77 @@
+server {
+   listen 80;
+   server_name luban.incgate.com;
+   root /home/ubuntu/rbbackup/html/ ;
+   index index.php;
+
+   location ~* /\.ht {
+     deny all;
+     access_log off;
+     log_not_found off;
+   }
+   
+
+   set $cache_uri $request_uri;
+   if ($request_method = POST) {
+      set $cache_uri 'null cache';
+   }
+   if ($query_string != "") {
+      set $cache_uri 'null cache';
+   }
+
+   location = /favicon.ico { log_not_found off; access_log off; }
+   location = /robots.txt { log_not_found off; access_log off; }
+
+   location / {
+      try_files $uri $uri/ /index.php?$query_string;
+   }
+
+   if (!-e $request_filename) {
+      rewrite ^/(.+)/$ /index.php?/$1 last;
+      break;
+   }
+
+   location ~* \.(?:ico|css|js|jpe?g|JPG|png|svg|woff)$ {
+      expires 365d;
+   }
+   
+
+   location ~ \.php(.*)$ {
+      set $skip_cache 1;
+#      fastcgi_split_path_info ^(.+\.php)(/.+)$;
+#      fastcgi_pass unix:/var/run/php5-fpm.sock;
+#      fastcgi_index index.php;
+#      include fastcgi_params;
+      if ($cache_uri != "null cache") {
+         add_header X-Cache_Debug "$cache_uri $cookie_nocache $arg_nocache$arg_comment $http_pragma $http_authorization";
+         set $skip_cache 0;
+      }
+
+      fastcgi_cache_bypass $skip_cache;
+      fastcgi_cache microcache;
+      fastcgi_cache_key $scheme$host$request_uri$request_method;
+      fastcgi_cache_valid any 8m;
+      fastcgi_cache_bypass $http_pragma;
+      fastcgi_cache_use_stale updating error timeout invalid_header http_500;
+
+      fastcgi_pass unix:/var/run/php5-fpm.sock;
+      try_files $uri = 404;
+      fastcgi_split_path_info ^(.+\.php)(/.+)$;
+      fastcgi_index index.php;
+      fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+      include fastcgi_params;
+      fastcgi_buffer_size 128k;
+      fastcgi_buffers 256 16k;
+      fastcgi_busy_buffers_size 256k;
+      fastcgi_temp_file_write_size 256k;
+      #pagespeed On;
+      #pagespeed ModifyCachingHeaders on;
+
+        # Needs to exist and be writable by nginx.
+      #pagespeed FileCachePath "/var/cache/ngx_pagespeed/";
+      #pagespeed LoadFromFile "https://luban.incgate.com" "/home/ubuntu/nginx_folder/html";
+      #pagespeed MapOriginDomain "http://localhost" "https://luban.incgate.com";
+      #pagespeed EnableFilters rewrite_css,combine_css,trim_urls;
+      #pagespeed DisableFilters sprite_images,convert_jpeg_to_webp,convert_to_webp_lossless;
+    }
+}
